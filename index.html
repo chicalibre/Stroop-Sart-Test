@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stroop & SART Testi</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      text-align: center;
+      height: 100%;
+    }
+    .screen {
+      display: none;
+      padding: 5vw 2vw;
+    }
+    .visible {
+      display: block;
+    }
+    #stroopStimulus, #sartStimulus {
+      font-size: 10vw;
+      margin: 8vh auto;
+      max-width: 90vw;
+      word-wrap: break-word;
+    }
+    .btn {
+      font-size: 6vw;
+      padding: 3vw 5vw;
+      margin: 2vw;
+      min-width: 40vw;
+      max-width: 80vw;
+      border: none;
+      border-radius: 12px;
+      background-color: #3498db;
+      color: white;
+    }
+    .feedback {
+      font-size: 5vw;
+      color: red;
+      height: 5vh;
+    }
+    input[type="text"] {
+      font-size: 5vw;
+      padding: 2vw;
+      width: 80vw;
+      max-width: 400px;
+      margin-top: 4vw;
+    }
+    h1, h2, p {
+      font-size: 5vw;
+      margin: 2vw auto;
+      padding: 0 4vw;
+    }
+    @media (min-width: 768px) {
+      #stroopStimulus, #sartStimulus {
+        font-size: 48px;
+      }
+      .btn {
+        font-size: 24px;
+      }
+      input[type="text"] {
+        font-size: 20px;
+      }
+      h1, h2, p {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Stroop ve SART Testi</h1>
+  <div id="intro" class="screen visible">
+    <p>Bu test yaklaşık 5-6 dakika sürecektir. Lütfen sessiz bir ortamda uygulayın.</p>
+    <p><strong>Stroop Testi:</strong> Renk adı farklı bir renkte gösterilecek. Gösterilen kelimenin <strong>rengini</strong> seçmeniz gerekiyor. Örneğin, "KIRMIZI" mavi renkte yazılmışsa, <em>mavi</em> butonuna tıklayın.</p>
+    <p><strong>SART Testi:</strong> Ekranda 1-9 arasında sayılar çıkacaktır. Her sayıya <strong>basmanız</strong> gerekiyor ancak <strong>3 sayısı çıkarsa lütfen basmayın.</strong></p>
+    <input type="text" id="userId" placeholder="Katılımcı ID / e-posta" />
+    <br><br>
+    <button onclick="startTest()" class="btn">Teste Başla</button>
+  </div>
+
+  <div id="stroop" class="screen">
+    <div id="stroopStimulus"></div>
+    <div id="stroopButtons"></div>
+    <div class="feedback" id="stroopFeedback"></div>
+  </div>
+
+  <div id="transition" class="screen">
+    <h2>Şimdi SART testine geçeceğiz.</h2>
+    <p>Hazır olduğunuzda aşağıya tıklayın.</p>
+    <button onclick="startSart()" class="btn">Devam</button>
+  </div>
+
+  <div id="sart" class="screen">
+    <div id="sartStimulus"></div>
+    <button onclick="respondSart()" class="btn">BAS</button>
+    <div class="feedback" id="sartFeedback"></div>
+  </div>
+
+  <div id="end" class="screen">
+    <h2>Test tamamlandı!</h2>
+    <p>Sonuçlarınız başarıyla kaydedildi.</p>
+  </div>
+
+  <script>
+    let userId = "";
+    let stroopData = [];
+    let stroopColors = ["red", "green", "blue", "orange"];
+    let colorNames = ["KIRMIZI", "YEŞİL", "MAVİ", "SARI"];
+    let stroopTrials = 30;
+    let stroopIndex = 0;
+    let stroopAutoTimer;
+    let stroopLocked = false;
+
+    function startTest() {
+      userId = document.getElementById("userId").value || "anonim";
+      document.getElementById("intro").classList.remove("visible");
+      document.getElementById("stroop").classList.add("visible");
+      showStroopTrial();
+    }
+
+    function showStroopTrial() {
+      document.getElementById("stroopFeedback").innerText = "";
+      if (stroopIndex >= stroopTrials) {
+        document.getElementById("stroop").classList.remove("visible");
+        document.getElementById("transition").classList.add("visible");
+        return;
+      }
+      stroopLocked = false;
+      const wordIndex = Math.floor(Math.random() * 4);
+      const colorIndex = Math.floor(Math.random() * 4);
+      const word = colorNames[wordIndex];
+      const color = stroopColors[colorIndex];
+      const stimulus = document.getElementById("stroopStimulus");
+      stimulus.innerText = word;
+      stimulus.style.color = color;
+      const start = Date.now();
+
+      const buttonContainer = document.getElementById("stroopButtons");
+      buttonContainer.innerHTML = "";
+      stroopColors.forEach((clr, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        btn.innerText = colorNames[idx];
+        btn.onclick = () => {
+          if (stroopLocked) return;
+          stroopLocked = true;
+          clearTimeout(stroopAutoTimer);
+          const rt = Date.now() - start;
+          const correct = clr === color;
+          stroopData.push({ userId, trial: stroopIndex + 1, word, color, response: clr, correct, rt });
+          document.getElementById("stroopFeedback").innerText = correct ? "" : "Yanlış seçim!";
+          setTimeout(() => {
+            stroopIndex++;
+            showStroopTrial();
+          }, 1000);
+        };
+        buttonContainer.appendChild(btn);
+      });
+
+      stroopAutoTimer = setTimeout(() => {
+        if (stroopLocked) return;
+        stroopLocked = true;
+        stroopData.push({ userId, trial: stroopIndex + 1, word, color, response: "", correct: false, rt: null });
+        document.getElementById("stroopFeedback").innerText = "Yanıt verilmedi!";
+        setTimeout(() => {
+          stroopIndex++;
+          showStroopTrial();
+        }, 1000);
+      }, 1500);
+    }
+
+    let sartIndex = 0;
+    let sartTrials = 50;
+    let sartData = [];
+    let sartTarget = "3";
+    let currentDigit = null;
+    let sartStart = null;
+    let allowClick = false;
+    let sartTimeout;
+
+    function startSart() {
+      document.getElementById("transition").classList.remove("visible");
+      document.getElementById("sart").classList.add("visible");
+      showSartTrial();
+    }
+
+    function showSartTrial() {
+      document.getElementById("sartFeedback").innerText = "";
+      if (sartIndex >= sartTrials) {
+        document.getElementById("sart").classList.remove("visible");
+        document.getElementById("end").classList.add("visible");
+        console.log("Stroop:", stroopData);
+        console.log("SART:", sartData);
+        return;
+      }
+      allowClick = true;
+      currentDigit = (1 + Math.floor(Math.random() * 9)).toString();
+      document.getElementById("sartStimulus").innerText = currentDigit;
+      sartStart = Date.now();
+
+      sartTimeout = setTimeout(() => {
+        if (allowClick) {
+          allowClick = false;
+          let correct = currentDigit === sartTarget ? true : false;
+          let response = "no press";
+          if (currentDigit !== sartTarget) {
+            document.getElementById("sartFeedback").innerText = "Yanıt eksik!";
+            correct = false;
+          }
+          sartData.push({ userId, trial: sartIndex + 1, digit: currentDigit, response, correct, rt: null });
+          sartIndex++;
+          setTimeout(showSartTrial, 800);
+        }
+      }, 700);
+    }
+
+    function respondSart() {
+      if (!allowClick) return;
+      clearTimeout(sartTimeout);
+      const rt = Date.now() - sartStart;
+      const correct = currentDigit !== sartTarget;
+      if (!correct) {
+        document.getElementById("sartFeedback").innerText = "Yanlış! 3'e basmamalıydın.";
+      }
+      sartData.push({ userId, trial: sartIndex + 1, digit: currentDigit, response: "pressed", correct, rt });
+      allowClick = false;
+      sartIndex++;
+      setTimeout(showSartTrial, 800);
+    }
+  </script>
+</body>
+</html>
